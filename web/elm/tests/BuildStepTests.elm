@@ -16,7 +16,7 @@ import Common
 import Concourse
 import Expect
 import Message.Callback as Callback
-import Message.Message as Message exposing (DomID(..))
+import Message.Message as Message exposing (BuildOutputDomID(..), DomID(..))
 import Message.Subscription exposing (Delivery(..))
 import Message.TopLevelMessage exposing (TopLevelMessage(..))
 import Test exposing (Test, describe, test)
@@ -84,7 +84,7 @@ all =
                         , selector =
                             [ style "background-color" Colors.background ]
                         }
-                    , hoverable = StepTab "retryStepId" 2
+                    , hoverable = BuildOutput <| StepTab "retryStepId" 2
                     , hoveredSelector =
                         { description = "lighter grey background"
                         , selector =
@@ -94,7 +94,7 @@ all =
                 , test "have click handlers" <|
                     given iVisitABuildWithARetryStep
                         >> when iAmLookingAtTheFirstTab
-                        >> then_ (itIsClickable <| StepTab "retryStepId" 1)
+                        >> then_ (itIsClickable <| BuildOutput <| StepTab "retryStepId" 1)
                 , test "have horizontal spacing" <|
                     given iVisitABuildWithARetryStep
                         >> when iAmLookingAtTheFirstTab

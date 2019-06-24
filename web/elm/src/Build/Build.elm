@@ -54,7 +54,7 @@ import Login.Login as Login
 import Maybe.Extra
 import Message.Callback exposing (Callback(..))
 import Message.Effects as Effects exposing (Effect(..), ScrollDirection(..))
-import Message.Message exposing (DomID(..), Message(..))
+import Message.Message exposing (BuildOutputDomID(..), DomID(..), Message(..))
 import Message.Subscription as Subscription exposing (Delivery(..), Interval(..), Subscription(..))
 import Message.TopLevelMessage exposing (TopLevelMessage(..))
 import RemoteData
@@ -331,7 +331,7 @@ handleCallback action ( model, effects ) =
             ( model, effects )
 
 
-handleDelivery : { a | hovered : Maybe DomID } -> Delivery -> ET Model
+handleDelivery : Session -> Delivery -> ET Model
 handleDelivery session delivery ( model, effects ) =
     case delivery of
         KeyDown keyEvent ->
@@ -350,12 +350,17 @@ handleDelivery session delivery ( model, effects ) =
                 newModel =
                     { model
                         | now = Just time
-                        , hoveredCounter = model.hoveredCounter + 1
+                        , hoveredCounter =
+                            if model.hoveredCounter == 0 then
+                                model.hoveredCounter + 1
+
+                            else
+                                model.hoveredCounter
                     }
             in
             updateOutput
                 (Build.Output.Output.handleStepTreeMsg <|
-                    StepTree.updateTooltip session newModel
+                    StepTree.updateTooltip (narrowSession session) newModel
                 )
                 ( newModel, effects )
 
@@ -463,7 +468,7 @@ handleDelivery session delivery ( model, effects ) =
             ( model, effects )
 
 
-update : { a | hovered : Maybe DomID } -> Message -> ET Model
+update : Session -> Message -> ET Model
 update session msg ( model, effects ) =
     case msg of
         Click (BuildTab build) ->
@@ -472,13 +477,31 @@ update session msg ( model, effects ) =
                 ++ [ NavigateTo <| Routes.toString <| Routes.buildRoute build ]
             )
 
-        Hover _ ->
+        Hover (Just (BuildOutput _)) ->
             let
                 newModel =
                     { model | hoveredCounter = 0 }
             in
             updateOutput
-                (Build.Output.Output.handleStepTreeMsg <| StepTree.updateTooltip session newModel)
+                (Build.Output.Output.handleStepTreeMsg <|
+                    StepTree.updateTooltip (narrowSession session) newModel
+                )
+                ( newModel, effects )
+
+        Hover _ ->
+            let
+                newModel =
+                    case session.hovered of
+                        Just (BuildOutput _) ->
+                            { model | hoveredCounter = 0 }
+
+                        _ ->
+                            model
+            in
+            updateOutput
+                (Build.Output.Output.handleStepTreeMsg <|
+                    StepTree.updateTooltip (narrowSession session) newModel
+                )
                 ( newModel, effects )
 
         Click TriggerBuildButton ->
@@ -497,12 +520,12 @@ update session msg ( model, effects ) =
             )
                 ( model, effects )
 
-        Click (StepHeader id) ->
+        Click (BuildOutput (StepHeader id)) ->
             updateOutput
                 (Build.Output.Output.handleStepTreeMsg <| StepTree.toggleStep id)
                 ( model, effects )
 
-        Click (StepTab id tab) ->
+        Click (BuildOutput (StepTab id tab)) ->
             updateOutput
                 (Build.Output.Output.handleStepTreeMsg <| StepTree.switchTab id tab)
                 ( model, effects )
@@ -983,7 +1006,7 @@ body session { currentBuild, authorized, showHelp } =
     <|
         if authorized then
             [ viewBuildPrep currentBuild.prep
-            , Html.Lazy.lazy2 viewBuildOutput session currentBuild.output
+            , viewBuildOutput session currentBuild.output
             , keyboardHelp showHelp
             ]
                 ++ tombstone session.timeZone currentBuild
@@ -1148,7 +1171,9 @@ viewBuildOutput : Session -> CurrentOutput -> Html Message
 viewBuildOutput session output =
     case output of
         Output o ->
-            Build.Output.Output.view session o
+            always
+                (Html.Lazy.lazy2 Build.Output.Output.view (narrowSession session) o)
+                (Debug.log "comparing" ( narrowSession session, o ))
 
         Cancelled ->
             Html.div
@@ -1482,3 +1507,13 @@ updateHistory newBuild =
 
             else
                 build
+
+
+narrowSession : Session -> { timeZone : Time.Zone, hovered : Maybe BuildOutputDomID }
+narrowSession { timeZone, hovered } =
+    case hovered of
+        Just (BuildOutput buildOutputDomID) ->
+            { timeZone = timeZone, hovered = Just buildOutputDomID }
+
+        _ ->
+            { timeZone = timeZone, hovered = Nothing }

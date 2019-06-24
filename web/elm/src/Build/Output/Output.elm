@@ -26,7 +26,7 @@ import Dict
 import Html exposing (Html)
 import Html.Attributes exposing (class)
 import Message.Effects exposing (Effect(..))
-import Message.Message exposing (Message(..))
+import Message.Message exposing (BuildOutputDomID, Message(..))
 import Routes exposing (StepID)
 import Time
 import Views.LoadingIndicator as LoadingIndicator
@@ -333,13 +333,19 @@ setStepFinish mtime tree =
     StepTree.map (\step -> { step | finish = mtime }) tree
 
 
-view : Session -> OutputModel -> Html Message
+view : { timeZone : Time.Zone, hovered : Maybe BuildOutputDomID } -> OutputModel -> Html Message
 view session { steps, state } =
+    let
+        foo =
+            Debug.log "it got called" "!"
+    in
     Html.div [ class "steps" ] [ viewStepTree session steps state ]
 
 
 viewStepTree :
-    Session
+    { timeZone : Time.Zone
+    , hovered : Maybe BuildOutputDomID
+    }
     -> Maybe StepTreeModel
     -> OutputState
     -> Html Message

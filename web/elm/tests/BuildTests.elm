@@ -886,7 +886,8 @@ all =
                     |> Application.update
                         (Msgs.Update <|
                             Message.Message.Click <|
-                                Message.Message.StepHeader "stepid"
+                                Message.Message.BuildOutput <|
+                                    Message.Message.StepHeader "stepid"
                         )
                     |> Tuple.first
                     |> Common.queryView
@@ -2515,7 +2516,8 @@ all =
                         >> Application.update
                             (Msgs.Update <|
                                 Message.Message.Click <|
-                                    Message.Message.StepHeader "plan"
+                                    Message.Message.BuildOutput <|
+                                        Message.Message.StepHeader "plan"
                             )
                         >> Tuple.first
                         >> Common.queryView
@@ -2540,13 +2542,15 @@ all =
                         >> Application.update
                             (Msgs.Update <|
                                 Message.Message.Click <|
-                                    Message.Message.StepHeader "plan"
+                                    Message.Message.BuildOutput <|
+                                        Message.Message.StepHeader "plan"
                             )
                         >> Tuple.first
                         >> Application.update
                             (Msgs.Update <|
                                 Message.Message.Click <|
-                                    Message.Message.StepHeader "plan"
+                                    Message.Message.BuildOutput <|
+                                        Message.Message.StepHeader "plan"
                             )
                         >> Tuple.first
                         >> Common.queryView
@@ -2672,8 +2676,9 @@ all =
                                 (Msgs.Update <|
                                     Message.Message.Hover <|
                                         Just <|
-                                            Message.Message.FirstOccurrenceIcon
-                                                "foo"
+                                            Message.Message.BuildOutput <|
+                                                Message.Message.FirstOccurrenceIcon
+                                                    "foo"
                                 )
                     , test "no tooltip before 1 second has passed" <|
                         fetchPlanWithGetStepWithFirstOccurrence
@@ -2681,8 +2686,9 @@ all =
                                 (Msgs.Update <|
                                     Message.Message.Hover <|
                                         Just <|
-                                            Message.Message.FirstOccurrenceIcon
-                                                "foo"
+                                            Message.Message.BuildOutput <|
+                                                Message.Message.FirstOccurrenceIcon
+                                                    "foo"
                                 )
                             >> Tuple.first
                             >> Common.queryView
@@ -2706,8 +2712,9 @@ all =
                                 (Msgs.Update <|
                                     Message.Message.Hover <|
                                         Just <|
-                                            Message.Message.FirstOccurrenceIcon
-                                                "foo"
+                                            Message.Message.BuildOutput <|
+                                                Message.Message.FirstOccurrenceIcon
+                                                    "foo"
                                 )
                             >> Tuple.first
                             >> Application.handleDelivery
@@ -2764,8 +2771,9 @@ all =
                                 (Msgs.Update <|
                                     Message.Message.Hover <|
                                         Just <|
-                                            Message.Message.FirstOccurrenceIcon
-                                                "foo"
+                                            Message.Message.BuildOutput <|
+                                                Message.Message.FirstOccurrenceIcon
+                                                    "foo"
                                 )
                             >> Tuple.first
                             >> Common.queryView
@@ -2790,8 +2798,9 @@ all =
                                 (Msgs.Update <|
                                     Message.Message.Hover <|
                                         Just <|
-                                            Message.Message.FirstOccurrenceIcon
-                                                "foo"
+                                            Message.Message.BuildOutput <|
+                                                Message.Message.FirstOccurrenceIcon
+                                                    "foo"
                                 )
                             >> Tuple.first
                             >> Application.handleDelivery
@@ -2826,8 +2835,9 @@ all =
                             (Msgs.Update <|
                                 Message.Message.Hover <|
                                     Just <|
-                                        Message.Message.FirstOccurrenceIcon
-                                            "foo"
+                                        Message.Message.BuildOutput <|
+                                            Message.Message.FirstOccurrenceIcon
+                                                "foo"
                             )
                         >> Tuple.first
                         >> Application.handleDelivery
@@ -2976,8 +2986,9 @@ all =
                             (Msgs.Update <|
                                 Message.Message.Hover <|
                                     Just <|
-                                        Message.Message.StepState
-                                            "plan"
+                                        Message.Message.BuildOutput <|
+                                            Message.Message.StepState
+                                                "plan"
                             )
                         >> Tuple.first
                         >> Application.handleDelivery
@@ -3023,8 +3034,9 @@ all =
                             (Msgs.Update <|
                                 Message.Message.Hover <|
                                     Just <|
-                                        Message.Message.StepState
-                                            "plan"
+                                        Message.Message.BuildOutput <|
+                                            Message.Message.StepState
+                                                "plan"
                             )
                         >> Tuple.first
                         >> Application.handleDelivery

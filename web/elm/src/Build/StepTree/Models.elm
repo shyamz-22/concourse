@@ -25,7 +25,7 @@ import Ansi.Log
 import Array exposing (Array)
 import Concourse
 import Dict exposing (Dict)
-import Message.Message exposing (DomID)
+import Message.Message exposing (BuildOutputDomID, DomID)
 import Routes exposing (Highlight, StepID)
 import Time
 
@@ -34,7 +34,7 @@ type alias StepTreeModel =
     { tree : StepTree
     , foci : Dict StepID StepFocus
     , highlight : Highlight
-    , tooltip : Maybe DomID
+    , tooltip : Maybe BuildOutputDomID
     }
 
 

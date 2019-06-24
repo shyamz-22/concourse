@@ -207,7 +207,7 @@ handleLoggedOut ( m, effs ) =
     )
 
 
-handleDelivery : { a | hovered : Maybe DomID } -> Delivery -> ET Model
+handleDelivery : Session -> Delivery -> ET Model
 handleDelivery session delivery =
     genericUpdate
         (Build.handleDelivery session delivery)

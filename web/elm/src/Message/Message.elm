@@ -1,5 +1,6 @@
 module Message.Message exposing
-    ( DomID(..)
+    ( BuildOutputDomID(..)
+    , DomID(..)
     , Message(..)
     , VersionId
     , VersionToggleAction(..)
@@ -51,8 +52,7 @@ type DomID
     | CheckButton Bool
     | SaveCommentButton
     | AbortBuildButton
-    | FirstOccurrenceIcon StepID
-    | StepState StepID
+    | BuildOutput BuildOutputDomID
     | PinIcon
     | PinButton VersionId
     | PinBar
@@ -62,8 +62,6 @@ type DomID
     | WelcomeCardCliIcon Cli.Cli
     | CopyTokenButton
     | JobGroup Int
-    | StepTab String Int
-    | StepHeader String
     | ShowSearchButton
     | ClearSearchButton
     | LoginButton
@@ -77,6 +75,13 @@ type DomID
     | HamburgerMenu
     | SideBarTeam String
     | SideBarPipeline Concourse.PipelineIdentifier
+
+
+type BuildOutputDomID
+    = FirstOccurrenceIcon StepID
+    | StepState StepID
+    | StepTab String Int
+    | StepHeader String
 
 
 type VersionToggleAction
