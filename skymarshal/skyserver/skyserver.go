@@ -50,6 +50,7 @@ func NewSkyServer(config *SkyConfig) (*SkyServer, error) {
 
 type SkyServer struct {
 	config *SkyConfig
+	//UserFactory ????!!!!
 }
 
 func (s *SkyServer) Login(w http.ResponseWriter, r *http.Request) {
@@ -214,6 +215,11 @@ func (s *SkyServer) Callback(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+
+	//
+	// save/update the user login
+	// DbUser.SaveOrUpdateUser(verifiedclaims)
+	//
 
 	if skyToken, err = s.config.TokenIssuer.Issue(verifiedClaims); err != nil {
 		logger.Error("failed-to-issue-concourse-token", err)
