@@ -22,6 +22,18 @@ type FakeUserFactory struct {
 		result1 db.User
 		result2 error
 	}
+	GetAllUsersStub        func() ([]db.User, error)
+	getAllUsersMutex       sync.RWMutex
+	getAllUsersArgsForCall []struct {
+	}
+	getAllUsersReturns struct {
+		result1 []db.User
+		result2 error
+	}
+	getAllUsersReturnsOnCall map[int]struct {
+		result1 []db.User
+		result2 error
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
@@ -90,11 +102,68 @@ func (fake *FakeUserFactory) CreateOrUpdateUserReturnsOnCall(i int, result1 db.U
 	}{result1, result2}
 }
 
+func (fake *FakeUserFactory) GetAllUsers() ([]db.User, error) {
+	fake.getAllUsersMutex.Lock()
+	ret, specificReturn := fake.getAllUsersReturnsOnCall[len(fake.getAllUsersArgsForCall)]
+	fake.getAllUsersArgsForCall = append(fake.getAllUsersArgsForCall, struct {
+	}{})
+	fake.recordInvocation("GetAllUsers", []interface{}{})
+	fake.getAllUsersMutex.Unlock()
+	if fake.GetAllUsersStub != nil {
+		return fake.GetAllUsersStub()
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	fakeReturns := fake.getAllUsersReturns
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeUserFactory) GetAllUsersCallCount() int {
+	fake.getAllUsersMutex.RLock()
+	defer fake.getAllUsersMutex.RUnlock()
+	return len(fake.getAllUsersArgsForCall)
+}
+
+func (fake *FakeUserFactory) GetAllUsersCalls(stub func() ([]db.User, error)) {
+	fake.getAllUsersMutex.Lock()
+	defer fake.getAllUsersMutex.Unlock()
+	fake.GetAllUsersStub = stub
+}
+
+func (fake *FakeUserFactory) GetAllUsersReturns(result1 []db.User, result2 error) {
+	fake.getAllUsersMutex.Lock()
+	defer fake.getAllUsersMutex.Unlock()
+	fake.GetAllUsersStub = nil
+	fake.getAllUsersReturns = struct {
+		result1 []db.User
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeUserFactory) GetAllUsersReturnsOnCall(i int, result1 []db.User, result2 error) {
+	fake.getAllUsersMutex.Lock()
+	defer fake.getAllUsersMutex.Unlock()
+	fake.GetAllUsersStub = nil
+	if fake.getAllUsersReturnsOnCall == nil {
+		fake.getAllUsersReturnsOnCall = make(map[int]struct {
+			result1 []db.User
+			result2 error
+		})
+	}
+	fake.getAllUsersReturnsOnCall[i] = struct {
+		result1 []db.User
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeUserFactory) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
 	fake.createOrUpdateUserMutex.RLock()
 	defer fake.createOrUpdateUserMutex.RUnlock()
+	fake.getAllUsersMutex.RLock()
+	defer fake.getAllUsersMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

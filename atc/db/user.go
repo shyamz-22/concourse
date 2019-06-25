@@ -20,10 +20,10 @@ type User interface {
 	LastLogin() time.Time
 }
 
-func (u *user) ID() int              { return u.id }
-func (u *user) Name() string         { return u.name }
-func (u *user) Connector() string    { return u.connector }
-func (u *user) LastLogin() time.Time { return u.lastLogin }
+func (u user) ID() int              { return u.id }
+func (u user) Name() string         { return u.name }
+func (u user) Connector() string    { return u.connector }
+func (u user) LastLogin() time.Time { return u.lastLogin }
 
 func (u user) find(tx Tx) (User, bool, error) {
 	var id int

@@ -1,9 +1,13 @@
 package db
 
+import "time"
+
 //go:generate counterfeiter . UserFactory
 
 type UserFactory interface {
 	CreateOrUpdateUser(username, connector string) (User, error)
+	GetAllUsers() ([]User, error)
+	GetAllUsersByLoginDate(LastLogin time.Time) ([]User, error)
 }
 
 type userFactory struct {
@@ -44,52 +48,49 @@ func (f *userFactory) CreateOrUpdateUser(username, connector string) (User, erro
 		return nil, err
 	}
 
+	err = tx.Commit()
+
+	if err != nil {
+		return nil, err
+	}
+
 	return u, nil
-
-
-
-	//row, err := psql.Select("id").
-	//	From("users").
-	//	Where(sq.Eq{
-	//		"username":  userInfo.Name,
-	//		"connector": userInfo.Connector,
-	//	}).
-	//	RunWith(tx).
-	//	Query()
-	//if err != nil {
-	//	return err
-	//}
-	//defer Close(row)
-	//
-	//if err != nil {
-	//	return err
-	//}
-	//if row.Next() {
-	//	_, err := psql.Delete("users").
-	//		Where(sq.Eq{
-	//			"username":  userInfo.Name,
-	//			"connector": userInfo.Connector,
-	//		}).
-	//		RunWith(tx).
-	//		Exec()
-	//	if err != nil {
-	//		return err
-	//	}
-	//}
-	//_, err = psql.Insert("users").
-	//	Columns("username", "connector").
-	//	Values(userInfo.Name, userInfo.Connector).
-	//	RunWith(tx).
-	//	Exec()
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//err = tx.Commit()
-	//return err
 }
 
-func NewUseractory(conn Conn) UserFactory {
+func (f *userFactory) GetAllUsers() ([]User, error) {
+	rows, err := psql.Select("id", "username", "connector", "last_login").
+		From("users").
+		RunWith(f.conn).
+		Query()
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer Close(rows)
+
+	var users []User
+
+	for rows.Next() {
+		var currUser user
+		err = rows.Scan(&currUser.id, &currUser.name, &currUser.connector, &currUser.lastLogin)
+
+		if err != nil {
+			return nil, err
+		}
+
+		users = append(users, currUser)
+	}
+	return users, nil
+}
+
+func (f *userFactory) GetAllUsersByLoginDate(lastLogin time.Time) ([]User, error) {
+	//not yet implemented
+	return nil, nil
+}
+
+
+func NewUserFactory(conn Conn) UserFactory {
 	return &userFactory{
 		conn: conn,
 	}
