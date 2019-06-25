@@ -498,7 +498,7 @@ func (cmd *RunCommand) constructAPIMembers(
 ) ([]grouper.Member, error) {
 	teamFactory := db.NewTeamFactory(dbConn, lockFactory)
 
-	// create user factory
+	userFactory := db.NewUserFactory(dbConn)
 
 	_, err := teamFactory.CreateDefaultTeamIfNotExists()
 	if err != nil {
@@ -517,7 +517,7 @@ func (cmd *RunCommand) constructAPIMembers(
 	authHandler, err := skymarshal.NewServer(&skymarshal.Config{
 		Logger:      logger,
 		TeamFactory: teamFactory,
-		//UserFactory: userFactory,
+		UserFactory: userFactory,
 		Flags:       cmd.Auth.AuthFlags,
 		ExternalURL: cmd.ExternalURL.String(),
 		HTTPClient:  httpClient,

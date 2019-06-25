@@ -22,7 +22,7 @@ import (
 type Config struct {
 	Logger      lager.Logger
 	TeamFactory db.TeamFactory
-	//UserFactory db.UserFactory
+	UserFactory db.UserFactory
 	Flags       skycmd.AuthFlags
 	ExternalURL string
 	HTTPClient  *http.Client
@@ -57,8 +57,6 @@ func NewServer(config *Config) (*Server, error) {
 	issuerURL := externalURL.String() + issuerPath
 	redirectURL := externalURL.String() + "/sky/callback"
 
-	// userModifier := user.NewModifier(config.UserFacotry)
-
 	tokenVerifier := token.NewVerifier(clientID, issuerURL)
 	tokenIssuer := token.NewIssuer(config.TeamFactory, token.NewGenerator(signingKey), config.Flags.Expiration)
 
@@ -66,7 +64,7 @@ func NewServer(config *Config) (*Server, error) {
 		Logger:          config.Logger.Session("sky"),
 		TokenVerifier:   tokenVerifier,
 		TokenIssuer:     tokenIssuer,
-		//UserModifier:  userModifier,
+		UserFactory:     config.UserFactory,
 		SigningKey:      signingKey,
 		DexIssuerURL:    issuerURL,
 		DexClientID:     clientID,

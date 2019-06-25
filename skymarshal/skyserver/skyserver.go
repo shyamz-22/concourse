@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/concourse/concourse/atc/db"
 	"net/http"
 	"net/url"
 	"strings"
@@ -13,7 +14,7 @@ import (
 
 	"code.cloudfoundry.org/lager"
 	"github.com/concourse/concourse/skymarshal/token"
-	oidc "github.com/coreos/go-oidc"
+	"github.com/coreos/go-oidc"
 	"golang.org/x/oauth2"
 	"gopkg.in/square/go-jose.v2/jwt"
 )
@@ -22,6 +23,7 @@ type SkyConfig struct {
 	Logger          lager.Logger
 	TokenVerifier   token.Verifier
 	TokenIssuer     token.Issuer
+	UserFactory     db.UserFactory
 	SigningKey      *rsa.PrivateKey
 	SecureCookies   bool
 	DexClientID     string
@@ -50,7 +52,6 @@ func NewSkyServer(config *SkyConfig) (*SkyServer, error) {
 
 type SkyServer struct {
 	config *SkyConfig
-	//UserFactory ????!!!!
 }
 
 func (s *SkyServer) Login(w http.ResponseWriter, r *http.Request) {
@@ -216,14 +217,15 @@ func (s *SkyServer) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//
-	// save/update the user login
-	// DbUser.SaveOrUpdateUser(verifiedclaims)
-	//
-
 	if skyToken, err = s.config.TokenIssuer.Issue(verifiedClaims); err != nil {
 		logger.Error("failed-to-issue-concourse-token", err)
 		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	if _, err = s.config.UserFactory.CreateOrUpdateUser(verifiedClaims.UserName, verifiedClaims.ConnectorID); err != nil {
+		logger.Error("failed-to-fetch-dex-token", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 

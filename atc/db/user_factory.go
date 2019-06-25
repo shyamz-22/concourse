@@ -89,7 +89,6 @@ func (f *userFactory) GetAllUsersByLoginDate(lastLogin time.Time) ([]User, error
 	return nil, nil
 }
 
-
 func NewUserFactory(conn Conn) UserFactory {
 	return &userFactory{
 		conn: conn,
