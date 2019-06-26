@@ -50,7 +50,7 @@ var (
 	dbWorkerLifecycle       *dbfakes.FakeWorkerLifecycle
 	build                   *dbfakes.FakeBuild
 	dbBuildFactory          *dbfakes.FakeBuildFactory
-	dbUserFactory *dbfakes.FakeUserFactory
+	dbUserFactory           *dbfakes.FakeUserFactory
 	dbTeam                  *dbfakes.FakeTeam
 	fakeScannerFactory      *resourceserverfakes.FakeScannerFactory
 	fakeSecretManager       *credsfakes.FakeSecrets

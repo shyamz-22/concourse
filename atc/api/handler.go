@@ -96,7 +96,6 @@ func NewHandler(
 	artifactServer := artifactserver.NewServer(logger, workerClient)
 	usersServer := usersserver.NewServer(logger, dbUserFactory)
 
-
 	handlers := map[string]http.Handler{
 		atc.GetConfig:  http.HandlerFunc(configServer.GetConfig),
 		atc.SaveConfig: http.HandlerFunc(configServer.SaveConfig),
@@ -197,8 +196,6 @@ func NewHandler(
 		atc.RenameTeam:     http.HandlerFunc(teamServer.RenameTeam),
 		atc.DestroyTeam:    http.HandlerFunc(teamServer.DestroyTeam),
 		atc.ListTeamBuilds: http.HandlerFunc(teamServer.ListTeamBuilds),
-
-
 
 		atc.CreateArtifact: teamHandlerFactory.HandlerFor(artifactServer.CreateArtifact),
 		atc.GetArtifact:    teamHandlerFactory.HandlerFor(artifactServer.GetArtifact),

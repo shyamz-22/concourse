@@ -407,7 +407,7 @@ var _ = Describe("Sky Server API", func() {
 				Context("the request succeeds when redirecting to the ATC", func() {
 					BeforeEach(func() {
 						fakeVerifiedClaims = &token.VerifiedClaims{
-							UserName: defaultUsername,
+							UserName:    defaultUsername,
 							ConnectorID: defaultConnector,
 						}
 
@@ -453,7 +453,7 @@ var _ = Describe("Sky Server API", func() {
 						Expect(locationURL.String()).To(Equal(skyServer.URL + "/teams/my-team?csrf_token=some-csrf"))
 					})
 
-					It("records the user login", func(){
+					It("records the user login", func() {
 						Expect(fakeUserFactory.CreateOrUpdateUserCallCount()).To(Equal(1))
 						user, connector := fakeUserFactory.CreateOrUpdateUserArgsForCall(0)
 						Expect(user).To(Equal(defaultUsername))
@@ -686,7 +686,7 @@ var _ = Describe("Sky Server API", func() {
 				Context("the request succeeds", func() {
 					BeforeEach(func() {
 						fakeVerifiedClaims = &token.VerifiedClaims{
-							UserName: defaultUsername,
+							UserName:    defaultUsername,
 							ConnectorID: defaultConnector,
 						}
 
@@ -716,7 +716,7 @@ var _ = Describe("Sky Server API", func() {
 						Expect(token["access_token"]).To(Equal(fakeOAuthToken.AccessToken))
 					})
 
-					It("records the user login", func(){
+					It("records the user login", func() {
 						Expect(fakeUserFactory.CreateOrUpdateUserCallCount()).To(Equal(1))
 						user, connector := fakeUserFactory.CreateOrUpdateUserArgsForCall(0)
 						Expect(user).To(Equal(defaultUsername))

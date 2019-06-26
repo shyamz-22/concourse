@@ -35,7 +35,7 @@ var _ = FDescribe("Users API", func() {
 			fakeaccess.IsAuthenticatedReturns(true)
 		})
 
-		Context("not an admin", func () {
+		Context("not an admin", func() {
 
 		})
 

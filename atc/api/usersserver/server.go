@@ -19,4 +19,3 @@ func NewServer(
 		userFactory: userFactory,
 	}
 }
-
