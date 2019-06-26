@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/concourse/concourse/atc/api/usersserver"
 	"net/http"
 	"path/filepath"
 
@@ -48,6 +49,7 @@ func NewHandler(
 	destroyer gc.Destroyer,
 	dbBuildFactory db.BuildFactory,
 	dbResourceConfigFactory db.ResourceConfigFactory,
+	dbUserFactory db.UserFactory,
 
 	eventHandlerFactory buildserver.EventHandlerFactory,
 
@@ -92,6 +94,8 @@ func NewHandler(
 	teamServer := teamserver.NewServer(logger, dbTeamFactory, externalURL)
 	infoServer := infoserver.NewServer(logger, version, workerVersion, externalURL, clusterName, credsManagers)
 	artifactServer := artifactserver.NewServer(logger, workerClient)
+	usersServer := usersserver.NewServer(logger, dbUserFactory)
+
 
 	handlers := map[string]http.Handler{
 		atc.GetConfig:  http.HandlerFunc(configServer.GetConfig),
@@ -175,6 +179,8 @@ func NewHandler(
 		atc.GetInfo:      http.HandlerFunc(infoServer.Info),
 		atc.GetInfoCreds: http.HandlerFunc(infoServer.Creds),
 
+		atc.ListActiveUsersSince: http.HandlerFunc(usersServer.GetUsersSince),
+
 		atc.ListContainers:           teamHandlerFactory.HandlerFor(containerServer.ListContainers),
 		atc.GetContainer:             teamHandlerFactory.HandlerFor(containerServer.GetContainer),
 		atc.HijackContainer:          teamHandlerFactory.HandlerFor(containerServer.HijackContainer),
@@ -191,6 +197,8 @@ func NewHandler(
 		atc.RenameTeam:     http.HandlerFunc(teamServer.RenameTeam),
 		atc.DestroyTeam:    http.HandlerFunc(teamServer.DestroyTeam),
 		atc.ListTeamBuilds: http.HandlerFunc(teamServer.ListTeamBuilds),
+
+
 
 		atc.CreateArtifact: teamHandlerFactory.HandlerFor(artifactServer.CreateArtifact),
 		atc.GetArtifact:    teamHandlerFactory.HandlerFor(artifactServer.GetArtifact),
