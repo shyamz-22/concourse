@@ -224,7 +224,7 @@ func (s *SkyServer) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err = s.config.UserFactory.CreateOrUpdateUser(verifiedClaims.UserName, verifiedClaims.ConnectorID); err != nil {
-		logger.Error("failed-to-fetch-dex-token", err)
+		logger.Error("failed-to-save-user-to-database", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -346,8 +346,13 @@ func (s *SkyServer) Token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Add("Content-Type", "application/json")
+	if _, err = s.config.UserFactory.CreateOrUpdateUser(verifiedClaims.UserName, verifiedClaims.ConnectorID); err != nil {
+		logger.Error("failed-to-save-user-to-database", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
+	w.Header().Add("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(skyToken)
 }
 

@@ -497,7 +497,6 @@ func (cmd *RunCommand) constructAPIMembers(
 	secretManager creds.Secrets,
 ) ([]grouper.Member, error) {
 	teamFactory := db.NewTeamFactory(dbConn, lockFactory)
-
 	userFactory := db.NewUserFactory(dbConn)
 
 	_, err := teamFactory.CreateDefaultTeamIfNotExists()
