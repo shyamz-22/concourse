@@ -100,6 +100,8 @@ const (
 	CreateArtifact     = "CreateArtifact"
 	GetArtifact        = "GetArtifact"
 	ListBuildArtifacts = "ListBuildArtifacts"
+
+	ListActiveUsersSince = "ListActiveUsersSince"
 )
 
 const (
