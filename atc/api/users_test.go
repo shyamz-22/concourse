@@ -19,43 +19,39 @@ var _ = FDescribe("Users API", func() {
 		fakeaccess = new(accessorfakes.FakeAccess)
 	})
 
-	JustBeforeEach(func() {
-		fakeAccessor.CreateReturns(fakeaccess)
+	Context("GET /api/v1/users", func() {
 
-		req, err := http.NewRequest("GET", server.URL+"/api/v1/users", nil)
-		Expect(err).NotTo(HaveOccurred())
+		JustBeforeEach(func() {
+			fakeAccessor.CreateReturns(fakeaccess)
 
-		response, err = client.Do(req)
-		Expect(err).NotTo(HaveOccurred())
-	})
+			req, err := http.NewRequest("GET", server.URL+"/api/v1/users", nil)
+			Expect(err).NotTo(HaveOccurred())
 
-	Context("when authenticated", func() {
-
-		BeforeEach(func() {
-			fakeaccess.IsAuthenticatedReturns(true)
+			response, err = client.Do(req)
+			Expect(err).NotTo(HaveOccurred())
 		})
 
-		Context("not an admin", func() {
+		Context("when authenticated", func() {
 
-		})
+			BeforeEach(func() {
+				fakeaccess.IsAuthenticatedReturns(true)
+			})
 
-		Context("GET /api/v1/users", func() {
+			Context("not an admin", func() {
 
-			It("returns 200", func() {
-				Expect(response.StatusCode).To(Equal(http.StatusOK))
+				It("returns 403", func() {
+					Expect(response.StatusCode).To(Equal(http.StatusForbidden))
+				})
+
 			})
 
 		})
 
-	})
+		Context("not authenticated", func() {
 
-	Context("not authenticated", func() {
-
-		BeforeEach(func() {
-			fakeaccess.IsAuthenticatedReturns(false)
-		})
-
-		Context("GET /api/v1/users", func() {
+			BeforeEach(func() {
+				fakeaccess.IsAuthenticatedReturns(false)
+			})
 
 			It("returns 401", func() {
 				Expect(response.StatusCode).To(Equal(http.StatusUnauthorized))
