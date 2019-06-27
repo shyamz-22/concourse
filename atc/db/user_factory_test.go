@@ -1,14 +1,15 @@
 package db_test
 
 import (
-	"github.com/concourse/concourse/atc/db"
 	"time"
+
+	"github.com/concourse/concourse/atc/db"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("User Factory", func() {
+var _ = FDescribe("User Factory", func() {
 
 	var err error
 

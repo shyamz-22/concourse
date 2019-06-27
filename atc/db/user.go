@@ -2,8 +2,9 @@ package db
 
 import (
 	"database/sql"
-	sq "github.com/Masterminds/squirrel"
 	"time"
+
+	sq "github.com/Masterminds/squirrel"
 )
 
 type user struct {
@@ -12,6 +13,8 @@ type user struct {
 	connector string
 	lastLogin time.Time
 }
+
+//go:generate counterfeiter . User
 
 type User interface {
 	ID() int
@@ -54,10 +57,14 @@ func (u user) find(tx Tx) (User, bool, error) {
 func (u user) create(tx Tx) (User, error) {
 	var id int
 	var lastLogin time.Time
+	// TODO: this func does a create and/or update and should update the login time to now
 	err := psql.Insert("users").
 		Columns("username", "connector").
 		Values(u.name, u.connector).
-		Suffix(`RETURNING id, last_login`).
+		Suffix(`ON CONFLICT (username, connector) DO UPDATE SET
+				username = ?,
+				connector = ?
+			RETURNING id, last_login`).
 		RunWith(tx).
 		QueryRow().
 		Scan(&id, &lastLogin)
