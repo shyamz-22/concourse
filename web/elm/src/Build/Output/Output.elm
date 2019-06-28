@@ -248,41 +248,49 @@ setRunning =
 
 appendStepLog : String -> Maybe Time.Posix -> StepTree -> StepTree
 appendStepLog output mtime tree =
-    (\a -> StepTree.map a tree) <|
-        \step ->
-            let
-                outputLineCount =
-                    Ansi.Log.update output (Ansi.Log.init Ansi.Log.Cooked) |> .lines |> Array.length
+    tree
 
-                logLineCount =
-                    max (Array.length step.log.lines - 1) 0
 
-                setLineTimestamp line timestamps =
-                    Dict.update line (always mtime) timestamps
 
-                newTimestamps =
-                    List.foldl
-                        setLineTimestamp
-                        step.timestamps
-                        (List.range logLineCount (logLineCount + outputLineCount - 1))
-
-                newLog =
-                    Ansi.Log.update output step.log
-            in
-            { step | log = newLog, timestamps = newTimestamps }
+--    (\a -> StepTree.map a tree) <|
+--        \step ->
+--            let
+--                outputLineCount =
+--                    Ansi.Log.update output (Ansi.Log.init Ansi.Log.Cooked) |> .lines |> Array.length
+--
+--                logLineCount =
+--                    max (Array.length step.log.lines - 1) 0
+--
+--                setLineTimestamp line timestamps =
+--                    Dict.update line (always mtime) timestamps
+--
+--                newTimestamps =
+--                    List.foldl
+--                        setLineTimestamp
+--                        step.timestamps
+--                        (List.range logLineCount (logLineCount + outputLineCount - 1))
+--
+--                newLog =
+--                    Ansi.Log.update output step.log
+--            in
+--            { step | log = newLog, timestamps = newTimestamps }
 
 
 setStepError : String -> Time.Posix -> StepTree -> StepTree
 setStepError message time tree =
-    StepTree.map
-        (\step ->
-            { step
-                | state = StepStateErrored
-                , error = Just message
-                , finish = Just time
-            }
-        )
-        tree
+    tree
+
+
+
+-- StepTree.map
+--     (\step ->
+--         { step
+--             | state = StepStateErrored
+--             , error = Just message
+--             , finish = Just time
+--         }
+--     )
+--     tree
 
 
 setStart : Time.Posix -> StepTree -> StepTree
@@ -310,35 +318,51 @@ finishStep exitStatus mtime tree =
 
 setResourceInfo : Concourse.Version -> Concourse.Metadata -> StepTree -> StepTree
 setResourceInfo version metadata tree =
-    StepTree.map (\step -> { step | version = Just version, metadata = metadata }) tree
+    tree
+
+
+
+-- StepTree.map (\step -> { step | version = Just version, metadata = metadata }) tree
 
 
 setStepState : StepState -> StepTree -> StepTree
 setStepState state tree =
-    StepTree.map (\step -> { step | state = state }) tree
+    tree
+
+
+
+-- StepTree.map (\step -> { step | state = state }) tree
 
 
 setStepInitialize : Time.Posix -> StepTree -> StepTree
 setStepInitialize time tree =
-    StepTree.map (\step -> { step | initialize = Just time }) tree
+    tree
+
+
+
+-- StepTree.map (\step -> { step | initialize = Just time }) tree
 
 
 setStepStart : Time.Posix -> StepTree -> StepTree
 setStepStart time tree =
-    StepTree.map (\step -> { step | start = Just time }) tree
+    tree
+
+
+
+-- StepTree.map (\step -> { step | start = Just time }) tree
 
 
 setStepFinish : Maybe Time.Posix -> StepTree -> StepTree
 setStepFinish mtime tree =
-    StepTree.map (\step -> { step | finish = mtime }) tree
+    tree
+
+
+
+-- StepTree.map (\step -> { step | finish = mtime }) tree
 
 
 view : { timeZone : Time.Zone, hovered : Maybe BuildOutputDomID } -> OutputModel -> Html Message
 view session { steps, state } =
-    let
-        foo =
-            Debug.log "it got called" "!"
-    in
     Html.div [ class "steps" ] [ viewStepTree session steps state ]
 
 

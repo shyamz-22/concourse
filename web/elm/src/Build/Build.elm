@@ -1171,9 +1171,7 @@ viewBuildOutput : Session -> CurrentOutput -> Html Message
 viewBuildOutput session output =
     case output of
         Output o ->
-            always
-                (Html.Lazy.lazy2 Build.Output.Output.view (narrowSession session) o)
-                (Debug.log "comparing" ( narrowSession session, o ))
+            Html.Lazy.lazy2 Build.Output.Output.view (narrowSession session) o
 
         Cancelled ->
             Html.div

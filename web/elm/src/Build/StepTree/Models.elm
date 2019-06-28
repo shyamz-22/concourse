@@ -12,9 +12,8 @@ module Build.StepTree.Models exposing
     , StepTreeModel
     , TabFocus(..)
     , Version
-    , finishTree
+    , finishStep
     , focusRetry
-    , map
     , updateAt
     , wrapHook
     , wrapMultiStep
@@ -33,17 +32,18 @@ import Time
 type alias StepTreeModel =
     { tree : StepTree
     , foci : Dict StepID StepFocus
+    , steps : Dict StepID Step
     , highlight : Highlight
     , tooltip : Maybe BuildOutputDomID
     }
 
 
 type StepTree
-    = Task Step
-    | ArtifactInput Step
-    | Get Step
-    | ArtifactOutput Step
-    | Put Step
+    = Task StepID
+    | ArtifactInput StepID
+    | Get StepID
+    | ArtifactOutput StepID
+    | Put StepID
     | Aggregate (Array StepTree)
     | InParallel (Array StepTree)
     | Do (Array StepTree)
@@ -158,31 +158,9 @@ focusRetry tab tree =
             tree
 
 
-updateAt : StepID -> (StepTree -> StepTree) -> StepTreeModel -> StepTreeModel
+updateAt : StepID -> (Step -> Step) -> StepTreeModel -> StepTreeModel
 updateAt id update root =
-    case Dict.get id root.foci of
-        Nothing ->
-            -- updateAt: id " ++ id ++ " not found"
-            root
-
-        Just focus ->
-            { root | tree = focus update root.tree }
-
-
-map : (Step -> Step) -> StepTree -> StepTree
-map f tree =
-    case tree of
-        Task step ->
-            Task (f step)
-
-        Get step ->
-            Get (f step)
-
-        Put step ->
-            Put (f step)
-
-        _ ->
-            tree
+    { root | steps = Dict.update id (Maybe.map update) root.steps }
 
 
 wrapMultiStep : Int -> Dict StepID StepFocus -> Dict StepID StepFocus
@@ -311,58 +289,6 @@ setMultiStepIndex idx update tree =
             tree
 
 
-finishTree : StepTree -> StepTree
-finishTree root =
-    case root of
-        Task step ->
-            Task (finishStep step)
-
-        ArtifactInput step ->
-            ArtifactInput (finishStep step)
-
-        Get step ->
-            Get (finishStep step)
-
-        ArtifactOutput step ->
-            ArtifactOutput { step | state = StepStateSucceeded }
-
-        Put step ->
-            Put (finishStep step)
-
-        Aggregate trees ->
-            Aggregate (Array.map finishTree trees)
-
-        InParallel trees ->
-            InParallel (Array.map finishTree trees)
-
-        Do trees ->
-            Do (Array.map finishTree trees)
-
-        OnSuccess hookedStep ->
-            OnSuccess (finishHookedStep hookedStep)
-
-        OnFailure hookedStep ->
-            OnFailure (finishHookedStep hookedStep)
-
-        OnAbort hookedStep ->
-            OnAbort (finishHookedStep hookedStep)
-
-        OnError hookedStep ->
-            OnError (finishHookedStep hookedStep)
-
-        Ensure hookedStep ->
-            Ensure (finishHookedStep hookedStep)
-
-        Try tree ->
-            Try (finishTree tree)
-
-        Retry id tab focus trees ->
-            Retry id tab focus (Array.map finishTree trees)
-
-        Timeout tree ->
-            Timeout (finishTree tree)
-
-
 finishStep : Step -> Step
 finishStep step =
     let
@@ -378,11 +304,3 @@ finishStep step =
                     otherwise
     in
     { step | state = newState }
-
-
-finishHookedStep : HookedStep -> HookedStep
-finishHookedStep hooked =
-    { hooked
-        | step = finishTree hooked.step
-        , hook = finishTree hooked.hook
-    }

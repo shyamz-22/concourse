@@ -24,9 +24,8 @@ import Build.StepTree.Models
         , StepTreeModel
         , TabFocus(..)
         , Version
-        , finishTree
+        , finishStep
         , focusRetry
-        , map
         , updateAt
         , wrapHook
         , wrapMultiStep
@@ -58,89 +57,230 @@ init :
     -> Concourse.BuildPlan
     -> StepTreeModel
 init hl resources buildPlan =
+    { tree = planToTree buildPlan
+    , foci = Dict.empty
+    , steps = insertTree resources buildPlan Dict.empty
+    , highlight = HighlightNothing
+    , tooltip = Nothing
+    }
+
+
+insertTree :
+    Concourse.BuildResources
+    -> Concourse.BuildPlan
+    -> Dict StepID Step
+    -> Dict StepID Step
+insertTree resources buildPlan =
+    let
+        emptyStep =
+            { id = buildPlan.id
+            , name = ""
+            , state = StepStatePending
+            , log = Ansi.Log.init Ansi.Log.Cooked
+            , error = Nothing
+            , expanded = False
+            , version = Nothing
+            , metadata = []
+            , firstOccurrence = False
+            , timestamps = Dict.empty
+            , initialize = Nothing
+            , start = Nothing
+            , finish = Nothing
+            }
+    in
     case buildPlan.step of
         Concourse.BuildStepTask name ->
-            initBottom hl Task buildPlan.id name
-
-        Concourse.BuildStepArtifactInput name ->
-            initBottom hl
-                (\s ->
-                    ArtifactInput { s | state = StepStateSucceeded }
-                )
+            Dict.insert
                 buildPlan.id
-                name
+                { emptyStep | name = name }
 
         Concourse.BuildStepGet name version ->
-            initBottom hl
-                (Get << setupGetStep resources name version)
+            Dict.insert
                 buildPlan.id
-                name
-
-        Concourse.BuildStepArtifactOutput name ->
-            initBottom hl ArtifactOutput buildPlan.id name
+                { emptyStep | name = name, version = version }
 
         Concourse.BuildStepPut name ->
-            initBottom hl Put buildPlan.id name
+            Dict.insert
+                buildPlan.id
+                { emptyStep | name = name }
 
         Concourse.BuildStepAggregate plans ->
-            initMultiStep hl resources buildPlan.id Aggregate plans
+            Array.foldl (>>) identity (Array.map (insertTree resources) plans)
 
         Concourse.BuildStepInParallel plans ->
-            initMultiStep hl resources buildPlan.id InParallel plans
+            Array.foldl (>>) identity (Array.map (insertTree resources) plans)
 
         Concourse.BuildStepDo plans ->
-            initMultiStep hl resources buildPlan.id Do plans
+            Array.foldl (>>) identity (Array.map (insertTree resources) plans)
 
         Concourse.BuildStepRetry plans ->
-            initMultiStep hl resources buildPlan.id (Retry buildPlan.id 1 Auto) plans
+            Array.foldl (>>) identity (Array.map (insertTree resources) plans)
 
-        Concourse.BuildStepOnSuccess hookedPlan ->
-            initHookedStep hl resources OnSuccess hookedPlan
+        Concourse.BuildStepOnSuccess { hook, step } ->
+            insertTree resources hook >> insertTree resources step
 
-        Concourse.BuildStepOnFailure hookedPlan ->
-            initHookedStep hl resources OnFailure hookedPlan
+        Concourse.BuildStepOnFailure { hook, step } ->
+            insertTree resources hook >> insertTree resources step
 
-        Concourse.BuildStepOnAbort hookedPlan ->
-            initHookedStep hl resources OnAbort hookedPlan
+        Concourse.BuildStepOnAbort { hook, step } ->
+            insertTree resources hook >> insertTree resources step
 
-        Concourse.BuildStepOnError hookedPlan ->
-            initHookedStep hl resources OnError hookedPlan
+        Concourse.BuildStepOnError { hook, step } ->
+            insertTree resources hook >> insertTree resources step
 
-        Concourse.BuildStepEnsure hookedPlan ->
-            initHookedStep hl resources Ensure hookedPlan
+        Concourse.BuildStepEnsure { hook, step } ->
+            insertTree resources hook >> insertTree resources step
 
-        Concourse.BuildStepTry plan ->
-            initWrappedStep hl resources Try plan
+        Concourse.BuildStepTry tryPlan ->
+            insertTree resources tryPlan
 
-        Concourse.BuildStepTimeout plan ->
-            initWrappedStep hl resources Timeout plan
+        Concourse.BuildStepTimeout timeoutPlan ->
+            insertTree resources timeoutPlan
+
+        Concourse.BuildStepArtifactInput name ->
+            Dict.insert
+                buildPlan.id
+                { emptyStep | name = name }
+
+        Concourse.BuildStepArtifactOutput name ->
+            Dict.insert
+                buildPlan.id
+                { emptyStep | name = name }
 
 
-initMultiStep :
-    Highlight
-    -> Concourse.BuildResources
-    -> String
-    -> (Array StepTree -> StepTree)
-    -> Array Concourse.BuildPlan
-    -> StepTreeModel
-initMultiStep hl resources planId constructor plans =
-    let
-        inited =
-            Array.map (init hl resources) plans
+planToTree : Concourse.BuildPlan -> StepTree
+planToTree plan =
+    case plan.step of
+        Concourse.BuildStepTask _ ->
+            Task plan.id
 
-        trees =
-            Array.map .tree inited
+        Concourse.BuildStepGet _ _ ->
+            Get plan.id
 
-        selfFoci =
-            Dict.singleton planId identity
+        Concourse.BuildStepPut _ ->
+            Put plan.id
 
-        foci =
-            inited
-                |> Array.map .foci
-                |> Array.indexedMap wrapMultiStep
-                |> Array.foldr Dict.union selfFoci
-    in
-    StepTreeModel (constructor trees) foci hl Nothing
+        Concourse.BuildStepAggregate plans ->
+            Aggregate (Array.map planToTree plans)
+
+        Concourse.BuildStepInParallel plans ->
+            InParallel (Array.map planToTree plans)
+
+        Concourse.BuildStepDo plans ->
+            Do (Array.map planToTree plans)
+
+        Concourse.BuildStepRetry plans ->
+            Retry plan.id (Array.length plans) Auto (Array.map planToTree plans)
+
+        Concourse.BuildStepOnSuccess { hook, step } ->
+            OnSuccess { hook = planToTree hook, step = planToTree step }
+
+        Concourse.BuildStepOnFailure { hook, step } ->
+            OnFailure { hook = planToTree hook, step = planToTree step }
+
+        Concourse.BuildStepOnAbort { hook, step } ->
+            OnAbort { hook = planToTree hook, step = planToTree step }
+
+        Concourse.BuildStepOnError { hook, step } ->
+            OnError { hook = planToTree hook, step = planToTree step }
+
+        Concourse.BuildStepEnsure { hook, step } ->
+            Ensure { hook = planToTree hook, step = planToTree step }
+
+        Concourse.BuildStepTry tryPlan ->
+            Try (planToTree tryPlan)
+
+        Concourse.BuildStepTimeout timeoutPlan ->
+            Timeout (planToTree timeoutPlan)
+
+        Concourse.BuildStepArtifactInput _ ->
+            ArtifactInput plan.id
+
+        Concourse.BuildStepArtifactOutput _ ->
+            ArtifactOutput plan.id
+
+
+
+-- case buildPlan.step of
+--     Concourse.BuildStepTask name ->
+--         initBottom hl (.id >> Task) buildPlan.id name
+--     Concourse.BuildStepArtifactInput name ->
+--         initBottom hl
+--             (.id >> ArtifactInput)
+--             buildPlan.id
+--             name
+--             |> (\m ->
+--                     { m
+--                         | steps =
+--                             Dict.update buildPlan.id
+--                                 (Maybe.map (\s -> { s | state = StepStateSucceeded }))
+--                                 m.steps
+--                     }
+--                )
+--     Concourse.BuildStepGet name version ->
+--         initBottom hl
+--             (.id >> Get)
+--             buildPlan.id
+--             name
+--             |> (\m ->
+--                     { m
+--                         | steps =
+--                             Dict.update buildPlan.id
+--                                 (Maybe.map (setupGetStep resources name version))
+--                                 m.steps
+--                     }
+--                )
+--     Concourse.BuildStepArtifactOutput name ->
+--         initBottom hl ArtifactOutput buildPlan.id name
+--     Concourse.BuildStepPut name ->
+--         initBottom hl Put buildPlan.id name
+--     Concourse.BuildStepAggregate plans ->
+--         initMultiStep hl resources buildPlan.id Aggregate plans
+--     Concourse.BuildStepInParallel plans ->
+--         initMultiStep hl resources buildPlan.id InParallel plans
+--     Concourse.BuildStepDo plans ->
+--         initMultiStep hl resources buildPlan.id Do plans
+--     Concourse.BuildStepRetry plans ->
+--         initMultiStep hl resources buildPlan.id (Retry buildPlan.id 1 Auto) plans
+--     Concourse.BuildStepOnSuccess hookedPlan ->
+--         initHookedStep hl resources OnSuccess hookedPlan
+--     Concourse.BuildStepOnFailure hookedPlan ->
+--         initHookedStep hl resources OnFailure hookedPlan
+--     Concourse.BuildStepOnAbort hookedPlan ->
+--         initHookedStep hl resources OnAbort hookedPlan
+--     Concourse.BuildStepOnError hookedPlan ->
+--         initHookedStep hl resources OnError hookedPlan
+--     Concourse.BuildStepEnsure hookedPlan ->
+--         initHookedStep hl resources Ensure hookedPlan
+--     Concourse.BuildStepTry plan ->
+--         initWrappedStep hl resources Try plan
+--     Concourse.BuildStepTimeout plan ->
+--         initWrappedStep hl resources Timeout plan
+-- initMultiStep :
+--     Highlight
+--     -> Concourse.BuildResources
+--     -> String
+--     -> (Array StepTree -> StepTree)
+--     -> Array Concourse.BuildPlan
+--     -> StepTreeModel
+-- initMultiStep hl resources planId constructor plans =
+--     let
+--         inited =
+--             Array.map (init hl resources) plans
+--
+--         trees =
+--             Array.map .tree inited
+--
+--         selfFoci =
+--             Dict.singleton planId identity
+--
+--         foci =
+--             inited
+--                 |> Array.map .foci
+--                 |> Array.indexedMap wrapMultiStep
+--                 |> Array.foldr Dict.union selfFoci
+--     in
+--     StepTreeModel (constructor trees) foci hl Nothing
 
 
 initBottom :
@@ -186,108 +326,110 @@ initBottom hl create id name =
     in
     { tree = create step
     , foci = Dict.singleton id identity
+    , steps = Dict.singleton id step
     , highlight = hl
     , tooltip = Nothing
     }
 
 
-initWrappedStep :
-    Highlight
-    -> Concourse.BuildResources
-    -> (StepTree -> StepTree)
-    -> Concourse.BuildPlan
-    -> StepTreeModel
-initWrappedStep hl resources create plan =
-    let
-        { tree, foci } =
-            init hl resources plan
-    in
-    { tree = create tree
-    , foci = Dict.map (always wrapStep) foci
-    , highlight = hl
-    , tooltip = Nothing
-    }
+
+-- initWrappedStep :
+--     Highlight
+--     -> Concourse.BuildResources
+--     -> (StepTree -> StepTree)
+--     -> Concourse.BuildPlan
+--     -> StepTreeModel
+-- initWrappedStep hl resources create plan =
+--     let
+--         { tree, foci } =
+--             init hl resources plan
+--     in
+--     { tree = create tree
+--     , foci = Dict.map (always wrapStep) foci
+--     , highlight = hl
+--     , tooltip = Nothing
+--     }
+-- initHookedStep :
+--     Highlight
+--     -> Concourse.BuildResources
+--     -> (HookedStep -> StepTree)
+--     -> Concourse.HookedPlan
+--     -> StepTreeModel
+-- initHookedStep hl resources create hookedPlan =
+--     let
+--         stepModel =
+--             init hl resources hookedPlan.step
+--
+--         hookModel =
+--             init hl resources hookedPlan.hook
+--     in
+--     { tree = create { step = stepModel.tree, hook = hookModel.tree }
+--     , foci =
+--         Dict.union
+--             (Dict.map (always wrapStep) stepModel.foci)
+--             (Dict.map (always wrapHook) hookModel.foci)
+--     , highlight = hl
+--     , tooltip = Nothing
+--     }
 
 
-initHookedStep :
-    Highlight
-    -> Concourse.BuildResources
-    -> (HookedStep -> StepTree)
-    -> Concourse.HookedPlan
-    -> StepTreeModel
-initHookedStep hl resources create hookedPlan =
-    let
-        stepModel =
-            init hl resources hookedPlan.step
-
-        hookModel =
-            init hl resources hookedPlan.hook
-    in
-    { tree = create { step = stepModel.tree, hook = hookModel.tree }
-    , foci =
-        Dict.union
-            (Dict.map (always wrapStep) stepModel.foci)
-            (Dict.map (always wrapHook) hookModel.foci)
-    , highlight = hl
-    , tooltip = Nothing
-    }
-
-
-treeIsActive : StepTree -> Bool
-treeIsActive stepTree =
+treeIsActive : StepTreeModel -> StepTree -> Bool
+treeIsActive root stepTree =
     case stepTree of
         Aggregate trees ->
-            List.any treeIsActive (Array.toList trees)
+            List.any (treeIsActive root) (Array.toList trees)
 
         InParallel trees ->
-            List.any treeIsActive (Array.toList trees)
+            List.any (treeIsActive root) (Array.toList trees)
 
         Do trees ->
-            List.any treeIsActive (Array.toList trees)
+            List.any (treeIsActive root) (Array.toList trees)
 
         OnSuccess { step } ->
-            treeIsActive step
+            treeIsActive root step
 
         OnFailure { step } ->
-            treeIsActive step
+            treeIsActive root step
 
         OnAbort { step } ->
-            treeIsActive step
+            treeIsActive root step
 
         OnError { step } ->
-            treeIsActive step
+            treeIsActive root step
 
         Ensure { step } ->
-            treeIsActive step
+            treeIsActive root step
 
         Try tree ->
-            treeIsActive tree
+            treeIsActive root tree
 
         Timeout tree ->
-            treeIsActive tree
+            treeIsActive root tree
 
         Retry _ _ _ trees ->
-            List.any treeIsActive (Array.toList trees)
+            List.any (treeIsActive root) (Array.toList trees)
 
-        Task step ->
-            stepIsActive step
+        Task stepID ->
+            stepIsActive root.steps stepID
 
         ArtifactInput _ ->
             False
 
-        Get step ->
-            stepIsActive step
+        Get stepID ->
+            stepIsActive root.steps stepID
 
-        ArtifactOutput step ->
-            stepIsActive step
+        ArtifactOutput stepID ->
+            stepIsActive root.steps stepID
 
-        Put step ->
-            stepIsActive step
+        Put stepID ->
+            stepIsActive root.steps stepID
 
 
-stepIsActive : Step -> Bool
-stepIsActive =
-    isActive << .state
+stepIsActive : Dict StepID Step -> StepID -> Bool
+stepIsActive steps id =
+    Dict.get id steps
+        |> Maybe.map (.state >> isActive)
+        |> Maybe.withDefault False
 
 
 setupGetStep : Concourse.BuildResources -> StepName -> Maybe Version -> Step -> Step
@@ -314,12 +456,18 @@ isFirstOccurrence resources step =
 
 finished : StepTreeModel -> StepTreeModel
 finished root =
-    { root | tree = finishTree root.tree }
+    { root | steps = Dict.map (always finishStep) root.steps }
 
 
 toggleStep : StepID -> StepTreeModel -> ( StepTreeModel, List Effect )
 toggleStep id root =
-    ( updateAt id (map (\step -> { step | expanded = not step.expanded })) root
+    ( { root
+        | steps =
+            Dict.update
+                id
+                (Maybe.map (\step -> { step | expanded = not step.expanded }))
+                root.steps
+      }
     , []
     )
 
@@ -415,29 +563,35 @@ viewTree :
     -> Html Message
 viewTree session model tree =
     case tree of
-        Task step ->
-            viewStep model session step StepHeaderTask
+        Task stepID ->
+            viewStep model session stepID StepHeaderTask
 
-        ArtifactInput step ->
-            viewStep model session step (StepHeaderGet False)
+        ArtifactInput stepID ->
+            viewStep model session stepID (StepHeaderGet False)
 
-        Get step ->
-            viewStep model session step (StepHeaderGet step.firstOccurrence)
+        Get stepID ->
+            let
+                isYellow =
+                    Dict.get stepID model.steps
+                        |> Maybe.map .firstOccurrence
+                        |> Maybe.withDefault False
+            in
+            viewStep model session stepID (StepHeaderGet isYellow)
 
-        ArtifactOutput step ->
-            viewStep model session step StepHeaderPut
+        ArtifactOutput stepID ->
+            viewStep model session stepID StepHeaderPut
 
-        Put step ->
-            viewStep model session step StepHeaderPut
+        Put stepID ->
+            viewStep model session stepID StepHeaderPut
 
-        Try step ->
-            viewTree session model step
+        Try stepTree ->
+            viewTree session model stepTree
 
         Retry id tab _ steps ->
             Html.div [ class "retry" ]
                 [ Html.ul
                     (class "retry-tabs" :: Styles.retryTabList)
-                    (Array.toList <| Array.indexedMap (viewTab session id tab) steps)
+                    (Array.toList <| Array.indexedMap (viewTab session model id tab) steps)
                 , case Array.get (tab - 1) steps of
                     Just step ->
                         viewTree session model step
@@ -447,8 +601,8 @@ viewTree session model tree =
                         Html.text ""
                 ]
 
-        Timeout step ->
-            viewTree session model step
+        Timeout stepTree ->
+            viewTree session model stepTree
 
         Aggregate steps ->
             Html.div [ class "aggregate" ]
@@ -480,12 +634,13 @@ viewTree session model tree =
 
 viewTab :
     { timeZone : Time.Zone, hovered : Maybe BuildOutputDomID }
+    -> StepTreeModel
     -> StepID
     -> Int
     -> Int
     -> StepTree
     -> Html Message
-viewTab { hovered } id currentTab idx step =
+viewTab { hovered } root id currentTab idx step =
     let
         tab =
             idx + 1
@@ -493,7 +648,7 @@ viewTab { hovered } id currentTab idx step =
     Html.li
         ([ classList
             [ ( "current", currentTab == tab )
-            , ( "inactive", not <| treeIsActive step )
+            , ( "inactive", not <| treeIsActive root step )
             ]
          , onMouseEnter <| Hover <| Just <| BuildOutput <| StepTab id tab
          , onMouseLeave <| Hover Nothing
@@ -502,7 +657,7 @@ viewTab { hovered } id currentTab idx step =
             ++ Styles.retryTab
                 { isHovered = hovered == (Just <| StepTab id tab)
                 , isCurrent = currentTab == tab
-                , isStarted = treeIsActive step
+                , isStarted = treeIsActive root step
                 }
         )
         [ Html.text (String.fromInt tab) ]
@@ -548,53 +703,58 @@ viewStep :
         { timeZone : Time.Zone
         , hovered : Maybe BuildOutputDomID
         }
-    -> Step
+    -> StepID
     -> StepHeaderType
     -> Html Message
-viewStep model session { id, name, log, state, error, expanded, version, metadata, timestamps, initialize, start, finish } headerType =
-    Html.div
-        [ classList
-            [ ( "build-step", True )
-            , ( "inactive", not <| isActive state )
-            ]
-        , attribute "data-step-name" name
-        ]
-        [ Html.div
-            ([ class "header"
-             , onClick <| Click <| BuildOutput <| StepHeader id
-             ]
-                ++ Styles.stepHeader
-            )
-            [ Html.div
-                [ style "display" "flex" ]
-                [ viewStepHeaderIcon headerType (model.tooltip == Just (FirstOccurrenceIcon id)) id
-                , Html.h3 [] [ Html.text name ]
-                ]
-            , Html.div
-                [ style "display" "flex" ]
-                [ viewVersion version
-                , viewStepState state id (viewDurationTooltip initialize start finish (model.tooltip == Just (StepState id)))
-                ]
-            ]
-        , if expanded then
-            Html.div
-                [ class "step-body"
-                , class "clearfix"
-                ]
-                [ viewMetadata metadata
-                , Html.Keyed.node "pre" [ class "timestamped-logs" ] <|
-                    viewLogs log timestamps model.highlight session.timeZone id
-                , case error of
-                    Nothing ->
-                        Html.span [] []
-
-                    Just msg ->
-                        Html.span [ class "error" ] [ Html.pre [] [ Html.text msg ] ]
-                ]
-
-          else
+viewStep model session stepID headerType =
+    case Dict.get stepID model.steps of
+        Nothing ->
             Html.text ""
-        ]
+
+        Just { id, name, log, state, error, expanded, version, metadata, timestamps, initialize, start, finish } ->
+            Html.div
+                [ classList
+                    [ ( "build-step", True )
+                    , ( "inactive", not <| isActive state )
+                    ]
+                , attribute "data-step-name" name
+                ]
+                [ Html.div
+                    ([ class "header"
+                     , onClick <| Click <| BuildOutput <| StepHeader id
+                     ]
+                        ++ Styles.stepHeader
+                    )
+                    [ Html.div
+                        [ style "display" "flex" ]
+                        [ viewStepHeaderIcon headerType (model.tooltip == Just (FirstOccurrenceIcon id)) id
+                        , Html.h3 [] [ Html.text name ]
+                        ]
+                    , Html.div
+                        [ style "display" "flex" ]
+                        [ viewVersion version
+                        , viewStepState state id (viewDurationTooltip initialize start finish (model.tooltip == Just (StepState id)))
+                        ]
+                    ]
+                , if expanded then
+                    Html.div
+                        [ class "step-body"
+                        , class "clearfix"
+                        ]
+                        [ viewMetadata metadata
+                        , Html.Keyed.node "pre" [ class "timestamped-logs" ] <|
+                            viewLogs log timestamps model.highlight session.timeZone id
+                        , case error of
+                            Nothing ->
+                                Html.span [] []
+
+                            Just msg ->
+                                Html.span [ class "error" ] [ Html.pre [] [ Html.text msg ] ]
+                        ]
+
+                  else
+                    Html.text ""
+                ]
 
 
 viewLogs :
