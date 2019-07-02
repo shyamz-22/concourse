@@ -22,24 +22,7 @@ func (f *userFactory) CreateOrUpdateUser(username, connector string) (User, erro
 	}
 	defer Rollback(tx)
 
-	u, found, err := user{
-		name:      username,
-		connector: connector,
-	}.find(tx)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if found {
-		err = user{
-			id: u.ID(),
-		}.delete(tx)
-		if err != nil {
-			return nil, err
-		}
-	}
-	u, err = user{
+	u, err := user{
 		name:      username,
 		connector: connector,
 	}.create(tx)

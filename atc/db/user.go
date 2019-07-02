@@ -29,8 +29,11 @@ func (u user) Connector() string    { return u.connector }
 func (u user) LastLogin() time.Time { return u.lastLogin }
 
 func (u user) find(tx Tx) (User, bool, error) {
-	var id int
-	var lastLogin time.Time
+	var (
+		id int
+		lastLogin time.Time
+	)
+
 	err := psql.Select("id", "last_login").
 		From("users").
 		Where(sq.Eq{
@@ -55,22 +58,26 @@ func (u user) find(tx Tx) (User, bool, error) {
 }
 
 func (u user) create(tx Tx) (User, error) {
-	var id int
-	var lastLogin time.Time
-	// TODO: this func does a create and/or update and should update the login time to now
+	var (
+		id int
+		lastLogin time.Time
+	)
+
 	err := psql.Insert("users").
 		Columns("username", "connector").
 		Values(u.name, u.connector).
 		Suffix(`ON CONFLICT (username, connector) DO UPDATE SET
 				username = ?,
-				connector = ?
-			RETURNING id, last_login`).
+				connector = ?,
+				last_login = now() 
+			RETURNING id, last_login`, u.name, u.connector).
 		RunWith(tx).
 		QueryRow().
 		Scan(&id, &lastLogin)
 	if err != nil {
 		return nil, err
 	}
+
 	return &user{id: id, name: u.name, connector: u.connector, lastLogin: lastLogin}, nil
 }
 
