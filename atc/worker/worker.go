@@ -193,15 +193,15 @@ func (worker *gardenWorker) FindOrCreateContainer(
 		err               error
 	)
 
-	err = worker.EnsureDBContainerExists(ctx, logger, owner, metadata)
-	if err != nil {
-		return nil, err
-	}
+		err = worker.EnsureDBContainerExists(ctx, logger, owner, metadata)
+		if err != nil {
+			return nil, err
+		}
 
-	creatingContainer, createdContainer, err = worker.dbWorker.FindContainer(owner)
-	if err != nil {
-		logger.Error("failed-to-find-container-in-db", err)
-		return nil, err
+		creatingContainer, createdContainer, err = worker.dbWorker.FindContainer(owner)
+		if err != nil {
+			logger.Error("failed-to-find-container-in-db", err)
+			return nil, err
 	}
 	if creatingContainer != nil {
 		containerHandle = creatingContainer.Handle()
