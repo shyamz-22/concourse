@@ -53,7 +53,7 @@ func NewHandler(
 
 	workerClient worker.Client,
 
-	// scannerFactory resourceserver.ScannerFactory,
+	scannerFactory resourceserver.ScannerFactory,
 
 	sink *lager.ReconfigurableSink,
 
@@ -78,7 +78,7 @@ func NewHandler(
 
 	buildServer := buildserver.NewServer(logger, externalURL, dbTeamFactory, dbBuildFactory, eventHandlerFactory)
 	jobServer := jobserver.NewServer(logger, externalURL, secretManager, dbJobFactory)
-	resourceServer := resourceserver.NewServer(logger, secretManager, dbResourceFactory, dbResourceConfigFactory)
+	resourceServer := resourceserver.NewServer(logger, scannerFactory, secretManager, dbResourceFactory, dbResourceConfigFactory)
 
 	versionServer := versionserver.NewServer(logger, externalURL)
 	pipelineServer := pipelineserver.NewServer(logger, dbTeamFactory, dbPipelineFactory, externalURL)

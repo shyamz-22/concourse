@@ -261,17 +261,14 @@ var _ = Describe("DelegateFactory", func() {
 
 	Describe("CheckDelegate", func() {
 		var (
-			delegate                exec.CheckDelegate
-			fakeResourceConfigScope *dbfakes.FakeResourceConfigScope
-			fakeCheck               *dbfakes.FakeCheck
-			versions                []atc.Version
+			delegate  exec.CheckDelegate
+			fakeCheck *dbfakes.FakeCheck
+			versions  []atc.Version
 		)
 
 		BeforeEach(func() {
 			fakeCheck = new(dbfakes.FakeCheck)
-			fakeResourceConfigScope = new(dbfakes.FakeResourceConfigScope)
 
-			fakeCheck.ResourceConfigScopeReturns(fakeResourceConfigScope, nil)
 			delegate = builder.NewCheckDelegate(fakeCheck, "some-plan-id", fakeClock)
 			versions = []atc.Version{{"some": "version"}}
 		})
@@ -282,8 +279,8 @@ var _ = Describe("DelegateFactory", func() {
 			})
 
 			It("saves an event", func() {
-				Expect(fakeResourceConfigScope.SaveVersionsCallCount()).To(Equal(1))
-				actualVersions := fakeResourceConfigScope.SaveVersionsArgsForCall(0)
+				Expect(fakeCheck.SaveVersionsCallCount()).To(Equal(1))
+				actualVersions := fakeCheck.SaveVersionsArgsForCall(0)
 				Expect(actualVersions).To(Equal(versions))
 			})
 		})

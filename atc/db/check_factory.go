@@ -112,7 +112,10 @@ func (c *checkFactory) CreateCheck(resourceConfigScopeID int, baseResourceTypeID
 			encryptedPayload,
 			nonce,
 		).
-		Suffix("RETURNING id, create_time").
+		Suffix(`
+			ON CONFLICT DO NOTHING
+			RETURNING id, create_time
+		`).
 		RunWith(tx).
 		QueryRow().
 		Scan(&id, &createTime)

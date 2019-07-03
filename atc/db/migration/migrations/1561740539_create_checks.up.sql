@@ -13,4 +13,6 @@ BEGIN;
       end_time timestamp WITH TIME ZONE
   );
 
+  CREATE UNIQUE INDEX resource_config_scope_id_key ON checks (resource_config_scope_id) WHERE status = 'pending';
+
 COMMIT;

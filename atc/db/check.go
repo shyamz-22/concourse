@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"code.cloudfoundry.org/lager"
 	"github.com/concourse/concourse/atc"
 	"github.com/concourse/concourse/atc/db/lock"
 	"github.com/lib/pq"
@@ -25,11 +26,6 @@ type Check interface {
 	ID() int
 	ResourceConfigScopeID() int
 	BaseResourceTypeID() int
-
-	Start() error
-	Finish() error
-	FinishWithError(err error) error
-
 	Schema() string
 	Plan() atc.Plan
 	CreateTime() time.Time
@@ -37,8 +33,13 @@ type Check interface {
 	EndTime() time.Time
 	Status() CheckStatus
 	IsRunning() bool
-	AcquireTrackingLock() (lock.Lock, bool, error)
+
+	Start() error
+	Finish() error
+	FinishWithError(err error) error
+
 	SaveVersions([]atc.Version) error
+	AcquireTrackingLock(lager.Logger) (lock.Lock, bool, error)
 }
 
 const (
@@ -92,8 +93,11 @@ func (c *check) IsRunning() bool {
 	return false
 }
 
-func (c *check) AcquireTrackingLock() (lock.Lock, bool, error) {
-	return nil, false, nil
+func (c *check) AcquireTrackingLock(logger lager.Logger) (lock.Lock, bool, error) {
+	return c.lockFactory.Acquire(
+		logger,
+		lock.NewCheckTrackingLockID(c.ID()),
+	)
 }
 
 func (c *check) SaveVersions(versions []atc.Version) error {

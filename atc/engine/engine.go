@@ -330,7 +330,7 @@ func (c *engineCheck) Run(logger lager.Logger) {
 		"check": c.check.ID(),
 	})
 
-	lock, acquired, err := c.check.AcquireTrackingLock()
+	lock, acquired, err := c.check.AcquireTrackingLock(logger)
 	if err != nil {
 		logger.Error("failed-to-get-lock", err)
 		return

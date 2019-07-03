@@ -21,6 +21,7 @@ const (
 	LockTypeContainerCreating
 	LockTypeDatabaseMigration
 	LockTypeResourceScanning
+	LockTypeCheckTracking
 )
 
 var ErrLostLock = errors.New("lock was lost while held, possibly due to connection breakage")
@@ -55,6 +56,10 @@ func NewDatabaseMigrationLockID() LockID {
 
 func NewResourceScanningLockID() LockID {
 	return LockID{LockTypeResourceScanning}
+}
+
+func NewCheckTrackingLockID(checkID int) LockID {
+	return LockID{LockTypeCheckTracking, checkID}
 }
 
 //go:generate counterfeiter . LockFactory

@@ -14,6 +14,7 @@ import (
 
 type StepBuilder interface {
 	BuildStep(db.Build) (exec.Step, error)
+	CheckStep(db.Check) (exec.Step, error)
 }
 
 var _ = Describe("Builder", func() {
@@ -747,4 +748,106 @@ var _ = Describe("Builder", func() {
 		})
 	})
 
+	Describe("CheckStep", func() {
+
+		var (
+			err error
+
+			fakeStepFactory     *builderfakes.FakeStepFactory
+			fakeDelegateFactory *builderfakes.FakeDelegateFactory
+
+			planFactory atc.PlanFactory
+			stepBuilder StepBuilder
+		)
+
+		BeforeEach(func() {
+			fakeStepFactory = new(builderfakes.FakeStepFactory)
+			fakeDelegateFactory = new(builderfakes.FakeDelegateFactory)
+
+			stepBuilder = builder.NewStepBuilder(
+				fakeStepFactory,
+				fakeDelegateFactory,
+				"http://example.com",
+			)
+
+			planFactory = atc.NewPlanFactory(123)
+		})
+
+		Context("with no check", func() {
+			JustBeforeEach(func() {
+				_, err = stepBuilder.CheckStep(nil)
+			})
+
+			It("errors", func() {
+				Expect(err).To(HaveOccurred())
+			})
+		})
+
+		Context("with a check", func() {
+			var (
+				fakeCheck *dbfakes.FakeCheck
+
+				expectedPlan     atc.Plan
+				expectedMetadata exec.StepMetadata
+			)
+
+			BeforeEach(func() {
+				fakeCheck = new(dbfakes.FakeCheck)
+				fakeCheck.ResourceConfigScopeIDReturns(4444)
+				fakeCheck.BaseResourceTypeIDReturns(2222)
+
+				expectedMetadata = exec.StepMetadata{
+					ResourceConfigScopeID: 4444,
+					BaseResourceTypeID:    2222,
+					ExternalURL:           "http://example.com",
+				}
+			})
+
+			JustBeforeEach(func() {
+				fakeCheck.PlanReturns(expectedPlan)
+
+				_, err = stepBuilder.CheckStep(fakeCheck)
+			})
+
+			Context("when the check has the wrong schema", func() {
+				BeforeEach(func() {
+					fakeCheck.SchemaReturns("not-schema")
+				})
+
+				It("errors", func() {
+					Expect(err).To(HaveOccurred())
+				})
+			})
+
+			Context("when the build has the right schema", func() {
+				BeforeEach(func() {
+					fakeCheck.SchemaReturns("exec.v2")
+				})
+
+				It("always returns a plan", func() {
+					Expect(err).NotTo(HaveOccurred())
+				})
+
+				Context("with a check plan", func() {
+
+					BeforeEach(func() {
+						expectedPlan = planFactory.NewPlan(atc.CheckPlan{
+							Name:   "some-check",
+							Type:   "git",
+							Source: atc.Source{"some": "source"},
+						})
+					})
+
+					It("constructs the put correctly", func() {
+						plan, stepMetadata, containerMetadata, _ := fakeStepFactory.CheckStepArgsForCall(0)
+						Expect(plan).To(Equal(expectedPlan))
+						Expect(stepMetadata).To(Equal(expectedMetadata))
+						Expect(containerMetadata).To(Equal(db.ContainerMetadata{
+							Type: db.ContainerTypeCheck,
+						}))
+					})
+				})
+			})
+		})
+	})
 })

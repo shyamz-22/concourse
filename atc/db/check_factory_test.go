@@ -43,6 +43,9 @@ var _ = Describe("CheckFactory", func() {
 					Type: "some-type",
 				},
 			})
+		})
+
+		It("succeeds", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -54,6 +57,17 @@ var _ = Describe("CheckFactory", func() {
 			Expect(check.Plan().Check.Type).To(Equal("some-type"))
 			Expect(check.CreateTime()).To(BeTemporally("~", time.Now(), time.Second))
 			Expect(check.ResourceConfigScopeID()).To(Equal(resourceConfigScope.ID()))
+		})
+
+		Context("when a check is already pending", func() {
+			BeforeEach(func() {
+				_, err = checkFactory.CreateCheck(resourceConfigScope.ID(), ubrt.ID, atc.Plan{})
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			It("doesn't create a check if one is pending", func() {
+				Expect(err).To(HaveOccurred())
+			})
 		})
 	})
 

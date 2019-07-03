@@ -2,6 +2,7 @@ package lidar_test
 
 import (
 	"context"
+	"errors"
 
 	"code.cloudfoundry.org/lager/lagertest"
 	. "github.com/onsi/ginkgo"
@@ -20,7 +21,7 @@ type Checker interface {
 
 var _ = Describe("Checker", func() {
 	var (
-		// err error
+		err error
 
 		fakeCheckFactory *dbfakes.FakeCheckFactory
 		fakeEngine       *enginefakes.FakeEngine
@@ -42,39 +43,49 @@ var _ = Describe("Checker", func() {
 	})
 
 	JustBeforeEach(func() {
-		checker.Check()
+		err = checker.Run(context.TODO())
 	})
 
-	Describe("Check", func() {
-		var inQueueChecks []*dbfakes.FakeCheck
-		var engineChecks []*enginefakes.FakeRunnable
+	Describe("Run", func() {
 
-		BeforeEach(func() {
-			inQueueChecks = []*dbfakes.FakeCheck{
-				new(dbfakes.FakeCheck),
-				new(dbfakes.FakeCheck),
-				new(dbfakes.FakeCheck),
-			}
-			returnedChecks := []db.Check{
-				inQueueChecks[0],
-				inQueueChecks[1],
-				inQueueChecks[2],
-			}
+		Context("when retrieving checks fails", func() {
+			BeforeEach(func() {
+				fakeCheckFactory.PendingChecksReturns(nil, errors.New("nope"))
+			})
 
-			fakeCheckFactory.ChecksReturns(returnedChecks, nil)
-
-			engineChecks = []*enginefakes.FakeRunnable{}
-			fakeEngine.NewCheckStub = func(build db.Check) engine.Runnable {
-				engineCheck := new(enginefakes.FakeRunnable)
-				engineChecks = append(engineChecks, engineCheck)
-				return engineCheck
-			}
+			It("errors", func() {
+				Expect(err).To(HaveOccurred())
+			})
 		})
 
-		It("resumes all currently in-flight builds", func() {
-			Eventually(engineChecks[0].RunCallCount).Should(Equal(1))
-			Eventually(engineChecks[1].RunCallCount).Should(Equal(1))
-			Eventually(engineChecks[2].RunCallCount).Should(Equal(1))
+		Context("when retrieving checks succeeds", func() {
+			var engineChecks []*enginefakes.FakeRunnable
+
+			BeforeEach(func() {
+
+				fakeCheckFactory.PendingChecksReturns([]db.Check{
+					new(dbfakes.FakeCheck),
+					new(dbfakes.FakeCheck),
+					new(dbfakes.FakeCheck),
+				}, nil)
+
+				engineChecks = []*enginefakes.FakeRunnable{}
+				fakeEngine.NewCheckStub = func(build db.Check) engine.Runnable {
+					engineCheck := new(enginefakes.FakeRunnable)
+					engineChecks = append(engineChecks, engineCheck)
+					return engineCheck
+				}
+			})
+
+			It("succeeds", func() {
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			It("runs all pendingg checks", func() {
+				Eventually(engineChecks[0].RunCallCount).Should(Equal(1))
+				Eventually(engineChecks[1].RunCallCount).Should(Equal(1))
+				Eventually(engineChecks[2].RunCallCount).Should(Equal(1))
+			})
 		})
 	})
 })

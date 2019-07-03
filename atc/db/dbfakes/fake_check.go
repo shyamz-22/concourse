@@ -5,15 +5,17 @@ import (
 	"sync"
 	"time"
 
+	"code.cloudfoundry.org/lager"
 	"github.com/concourse/concourse/atc"
 	"github.com/concourse/concourse/atc/db"
 	"github.com/concourse/concourse/atc/db/lock"
 )
 
 type FakeCheck struct {
-	AcquireTrackingLockStub        func() (lock.Lock, bool, error)
+	AcquireTrackingLockStub        func(lager.Logger) (lock.Lock, bool, error)
 	acquireTrackingLockMutex       sync.RWMutex
 	acquireTrackingLockArgsForCall []struct {
+		arg1 lager.Logger
 	}
 	acquireTrackingLockReturns struct {
 		result1 lock.Lock
@@ -171,15 +173,16 @@ type FakeCheck struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeCheck) AcquireTrackingLock() (lock.Lock, bool, error) {
+func (fake *FakeCheck) AcquireTrackingLock(arg1 lager.Logger) (lock.Lock, bool, error) {
 	fake.acquireTrackingLockMutex.Lock()
 	ret, specificReturn := fake.acquireTrackingLockReturnsOnCall[len(fake.acquireTrackingLockArgsForCall)]
 	fake.acquireTrackingLockArgsForCall = append(fake.acquireTrackingLockArgsForCall, struct {
-	}{})
-	fake.recordInvocation("AcquireTrackingLock", []interface{}{})
+		arg1 lager.Logger
+	}{arg1})
+	fake.recordInvocation("AcquireTrackingLock", []interface{}{arg1})
 	fake.acquireTrackingLockMutex.Unlock()
 	if fake.AcquireTrackingLockStub != nil {
-		return fake.AcquireTrackingLockStub()
+		return fake.AcquireTrackingLockStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2, ret.result3
@@ -194,10 +197,17 @@ func (fake *FakeCheck) AcquireTrackingLockCallCount() int {
 	return len(fake.acquireTrackingLockArgsForCall)
 }
 
-func (fake *FakeCheck) AcquireTrackingLockCalls(stub func() (lock.Lock, bool, error)) {
+func (fake *FakeCheck) AcquireTrackingLockCalls(stub func(lager.Logger) (lock.Lock, bool, error)) {
 	fake.acquireTrackingLockMutex.Lock()
 	defer fake.acquireTrackingLockMutex.Unlock()
 	fake.AcquireTrackingLockStub = stub
+}
+
+func (fake *FakeCheck) AcquireTrackingLockArgsForCall(i int) lager.Logger {
+	fake.acquireTrackingLockMutex.RLock()
+	defer fake.acquireTrackingLockMutex.RUnlock()
+	argsForCall := fake.acquireTrackingLockArgsForCall[i]
+	return argsForCall.arg1
 }
 
 func (fake *FakeCheck) AcquireTrackingLockReturns(result1 lock.Lock, result2 bool, result3 error) {

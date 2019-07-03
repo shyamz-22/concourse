@@ -304,6 +304,7 @@ func (builder *stepBuilder) buildCheckStep(check db.Check, plan atc.Plan) exec.S
 
 	stepMetadata := exec.StepMetadata{
 		ResourceConfigScopeID: check.ResourceConfigScopeID(),
+		ResourceConfigID:      check.ResourceConfigID(),
 		BaseResourceTypeID:    check.BaseResourceTypeID(),
 		ExternalURL:           builder.externalURL,
 	}

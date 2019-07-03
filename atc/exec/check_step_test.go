@@ -78,17 +78,6 @@ var _ = Describe("CheckStep", func() {
 		state = new(execfakes.FakeRunState)
 		state.ArtifactsReturns(repo)
 
-		uninterpolatedResourceTypes := atc.VersionedResourceTypes{
-			{
-				ResourceType: atc.ResourceType{
-					Name:   "custom-resource",
-					Type:   "custom-type",
-					Source: atc.Source{"some-custom": "((source-param))"},
-				},
-				Version: atc.Version{"some-custom": "version"},
-			},
-		}
-
 		interpolatedResourceTypes = atc.VersionedResourceTypes{
 			{
 				ResourceType: atc.ResourceType{
@@ -103,12 +92,11 @@ var _ = Describe("CheckStep", func() {
 		checkPlan = &atc.CheckPlan{
 			Name:                   "some-name",
 			Type:                   "some-resource-type",
-			Source:                 atc.Source{"some": "((source-param))"},
-			Params:                 atc.Params{"some-param": "some-value"},
+			Source:                 atc.Source{"some": "super-secret-source"},
 			Tags:                   []string{"some", "tags"},
 			Timeout:                "10s",
 			FromVersion:            &atc.Version{"some-custom": "version"},
-			VersionedResourceTypes: uninterpolatedResourceTypes,
+			VersionedResourceTypes: interpolatedResourceTypes,
 		}
 	})
 
