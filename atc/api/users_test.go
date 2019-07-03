@@ -15,7 +15,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = FDescribe("Users API", func() {
+var _ = Describe("Users API", func() {
 
 	var (
 		response   *http.Response
@@ -135,4 +135,72 @@ var _ = FDescribe("Users API", func() {
 
 	})
 
+	Context("GET /api/v1/users?since=", func() {
+		var date string
+		BeforeEach(func() {
+			fakeaccess.IsAuthenticatedReturns(true)
+			fakeaccess.IsAdminReturns(true)
+		})
+
+		JustBeforeEach(func() {
+			fakeAccessor.CreateReturns(fakeaccess)
+
+			req, err := http.NewRequest("GET", server.URL+ "/api/v1/users?since=" + date, nil)
+			Expect(err).NotTo(HaveOccurred())
+
+			response, err = client.Do(req)
+			Expect(err).NotTo(HaveOccurred())
+		})
+		Context("with correct date format", func() {
+			BeforeEach(func() {
+				date = "1969-12-30"
+
+				user1 := new(dbfakes.FakeUser)
+				user1.IDReturns(6)
+				user1.NameReturns("bob")
+				user1.ConnectorReturns("github")
+				user1.LastLoginReturns(time.Unix(10, 0))
+				dbUserFactory.GetAllUsersByLoginDateReturns([]db.User{user1}, nil)
+			})
+			It("returns users", func() {
+				body, err := ioutil.ReadAll(response.Body)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(body).To(MatchJSON(`[{
+						"id": 6,
+						"username": "bob",
+						"connector": "github",
+						"last_login": "1969-12-31T19:00:10-05:00"
+					}]`))
+			})
+		})
+
+		Context("with incorrect date format", func() {
+			BeforeEach(func() {
+				date = "1969-14-30"
+			})
+			It("returns an error message", func() {
+				body, err := ioutil.ReadAll(response.Body)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(body).To(MatchJSON(`{"error": "wrong date format (yyyy-MM-dd)"}`))
+			})
+
+			It("returns a HTTP 400", func() {
+				Expect(response.StatusCode).To(Equal(http.StatusBadRequest))
+			})
+		})
+
+		Context("no users logged in since the given date", func() {
+			BeforeEach(func() {
+				date = ""
+			})
+			It("returns an empty array", func() {
+				body, err := ioutil.ReadAll(response.Body)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(body).To(MatchJSON(`[]`))
+			})
+		})
+	})
 })

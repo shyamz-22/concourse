@@ -9,7 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = FDescribe("User Factory", func() {
+var _ = Describe("User Factory", func() {
 
 	var (
 		err error
