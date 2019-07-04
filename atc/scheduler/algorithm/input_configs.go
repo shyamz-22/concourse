@@ -131,7 +131,18 @@ func (im *inputMapper) MapInputs(
 			}
 
 			if !found {
-				return nil, false, PinnedVersionNotFoundError{pinnedVersion}
+				mapping := db.InputMapping{}
+				for _, innerInput := range job.Config().Inputs() {
+					inputResult := db.InputResult{}
+					if innerInput.Name == input.Name {
+						inputResult.ResolveError = PinnedVersionNotFoundError{pinnedVersion}
+					} else {
+						inputResult.ResolveSkipped = true
+					}
+					mapping[innerInput.Name] = inputResult
+				}
+
+				return mapping, false, nil
 			}
 
 			inputConfig.PinnedVersion = version
