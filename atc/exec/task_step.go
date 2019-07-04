@@ -70,7 +70,7 @@ type TaskStep struct {
 	containerMetadata db.ContainerMetadata
 	secrets           creds.Secrets
 	strategy          worker.ContainerPlacementStrategy
-	workerPool        worker.Pool
+	workerClient      worker.Client
 	delegate          TaskDelegate
 	succeeded         bool
 }
@@ -83,7 +83,7 @@ func NewTaskStep(
 	containerMetadata db.ContainerMetadata,
 	secrets creds.Secrets,
 	strategy worker.ContainerPlacementStrategy,
-	workerPool worker.Pool,
+	workerClient worker.Client,
 	delegate TaskDelegate,
 ) Step {
 	return &TaskStep{
@@ -94,7 +94,7 @@ func NewTaskStep(
 		containerMetadata: containerMetadata,
 		secrets:           secrets,
 		strategy:          strategy,
-		workerPool:        workerPool,
+		workerClient:      workerClient,
 		delegate:          delegate,
 	}
 }
@@ -204,7 +204,7 @@ func (step *TaskStep) Run(ctx context.Context, state RunState) error {
 	events := make(chan string)
 
 	go func(results chan worker.ReturnValue) {
-		status, volumeMounts, err := step.workerPool.RunTaskStep(
+		status, volumeMounts, err := step.workerClient.RunTaskStep(
 			ctx,
 			logger,
 			owner,

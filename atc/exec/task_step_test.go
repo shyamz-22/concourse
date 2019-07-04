@@ -35,7 +35,7 @@ var _ = Describe("TaskStep", func() {
 		stdoutBuf *gbytes.Buffer
 		stderrBuf *gbytes.Buffer
 
-		fakePool     *workerfakes.FakePool
+		fakeClient   *workerfakes.FakeClient
 		fakeWorker   *workerfakes.FakeWorker
 		fakeStrategy *workerfakes.FakeContainerPlacementStrategy
 
@@ -74,7 +74,7 @@ var _ = Describe("TaskStep", func() {
 		stderrBuf = gbytes.NewBuffer()
 
 		fakeWorker = new(workerfakes.FakeWorker)
-		fakePool = new(workerfakes.FakePool)
+		fakeClient = new(workerfakes.FakeClient)
 		fakeStrategy = new(workerfakes.FakeContainerPlacementStrategy)
 
 		fakeSecretManager = new(credsfakes.FakeSecrets)
@@ -134,7 +134,7 @@ var _ = Describe("TaskStep", func() {
 			containerMetadata,
 			fakeSecretManager,
 			fakeStrategy,
-			fakePool,
+			fakeClient,
 			fakeDelegate,
 		)
 
@@ -170,17 +170,9 @@ var _ = Describe("TaskStep", func() {
 		})
 
 		Context("when the worker is either found or chosen", func() {
-			BeforeEach(func() {
-				fakeWorker.NameReturns("some-worker")
-				fakePool.FindOrChooseWorkerForContainerReturns(fakeWorker, nil)
-
-				fakeContainer := new(workerfakes.FakeContainer)
-				fakeWorker.FindOrCreateContainerReturns(fakeContainer, nil)
-			})
-
 			It("finds or chooses a worker", func() {
-				Expect(fakePool.FindOrChooseWorkerForContainerCallCount()).To(Equal(1))
-				_, _, owner, containerSpec, workerSpec, strategy := fakePool.FindOrChooseWorkerForContainerArgsForCall(0)
+				Expect(fakeClient.RunTaskStepCallCount()).To(Equal(1))
+				_, _, owner, containerSpec, workerSpec, strategy := fakeClient.RunTaskStepArgsForCall(0)
 				Expect(owner).To(Equal(db.NewBuildStepContainerOwner(stepMetadata.BuildID, planID, stepMetadata.TeamID)))
 				cpu := uint64(1024)
 				memory := uint64(1024)
@@ -217,31 +209,27 @@ var _ = Describe("TaskStep", func() {
 				Expect(strategy).To(Equal(fakeStrategy))
 			})
 
-			Context("when the task's container is either found or created", func() {
+			Context("before running the task container", func() {
 				var (
 					fakeContainer *workerfakes.FakeContainer
 				)
 
 				BeforeEach(func() {
-					fakeContainer = new(workerfakes.FakeContainer)
-					fakeContainer.HandleReturns("some-handle")
-					fakeWorker.FindOrCreateContainerReturns(fakeContainer, nil)
+					fakeDelegate.InitializingStub = func(lager.Logger, atc.TaskConfig) {
+						defer GinkgoRecover()
+						Expect(fakeClient.RunTaskStepCallCount()).To(BeZero())
+					}
+					//fakeContainer = new(workerfakes.FakeContainer)
+					//fakeContainer.HandleReturns("some-handle")
+					//fakeWorker.FindOrCreateContainerReturns(fakeContainer, nil)
 				})
 
-				Describe("before creating a container", func() {
-					BeforeEach(func() {
-						fakeDelegate.InitializingStub = func(lager.Logger, atc.TaskConfig) {
-							defer GinkgoRecover()
-							Expect(fakeWorker.FindOrCreateContainerCallCount()).To(BeZero())
-						}
-					})
 
-					It("invoked the delegate's Initializing callback", func() {
-						Expect(fakeDelegate.InitializingCallCount()).To(Equal(1))
-					})
+				It("invoked the delegate's Initializing callback", func() {
+					Expect(fakeDelegate.InitializingCallCount()).To(Equal(1))
 				})
 
-				It("finds or creates a container", func() {
+				XIt("finds or creates a container", func() {
 					Expect(fakeWorker.FindOrCreateContainerCallCount()).To(Equal(1))
 					_, cancel, delegate, owner, createdMetadata, containerSpec, actualResourceTypes := fakeWorker.FindOrCreateContainerArgsForCall(0)
 					Expect(cancel).ToNot(BeNil())
@@ -295,17 +283,8 @@ var _ = Describe("TaskStep", func() {
 					})
 
 					It("finds or creates a container", func() {
-						Expect(fakeWorker.FindOrCreateContainerCallCount()).To(Equal(1))
-						_, cancel, delegate, owner, createdMetadata, containerSpec, actualResourceTypes := fakeWorker.FindOrCreateContainerArgsForCall(0)
-						Expect(cancel).ToNot(BeNil())
-						Expect(owner).To(Equal(db.NewBuildStepContainerOwner(stepMetadata.BuildID, planID, stepMetadata.TeamID)))
-						Expect(delegate).To(Equal(fakeDelegate))
-						Expect(createdMetadata).To(Equal(db.ContainerMetadata{
-							WorkingDirectory: "some-artifact-root",
-							Type:             db.ContainerTypeTask,
-							StepName:         "some-step",
-						}))
-
+						Expect(fakeClient.RunTaskStepCallCount()).To(Equal(1))
+						_, _, _, _, _, containerSpec, _ := fakeClient.RunTaskStepArgsForCall(0)
 
 						Expect(containerSpec).To(Equal(worker.ContainerSpec{
 							Platform: "some-platform",
@@ -321,7 +300,6 @@ var _ = Describe("TaskStep", func() {
 							Outputs: worker.OutputPaths{},
 						}))
 
-						Expect(actualResourceTypes).To(Equal(interpolatedResourceTypes))
 					})
 				})
 
@@ -357,10 +335,6 @@ var _ = Describe("TaskStep", func() {
 							fakeMountPath2 string = "some-artifact-root/some-other-output/"
 							fakeMountPath3 string = "some-artifact-root/some-output-configured-path-with-trailing-slash/"
 
-							fakeNewlyCreatedVolume1 *workerfakes.FakeVolume
-							fakeNewlyCreatedVolume2 *workerfakes.FakeVolume
-							fakeNewlyCreatedVolume3 *workerfakes.FakeVolume
-
 							fakeVolume1 *workerfakes.FakeVolume
 							fakeVolume2 *workerfakes.FakeVolume
 							fakeVolume3 *workerfakes.FakeVolume
@@ -381,13 +355,6 @@ var _ = Describe("TaskStep", func() {
 									{Name: "some-trailing-slash-output", Path: "some-output-configured-path-with-trailing-slash/"},
 								},
 							}
-
-							fakeNewlyCreatedVolume1 = new(workerfakes.FakeVolume)
-							fakeNewlyCreatedVolume1.HandleReturns("some-handle-1")
-							fakeNewlyCreatedVolume2 = new(workerfakes.FakeVolume)
-							fakeNewlyCreatedVolume2.HandleReturns("some-handle-2")
-							fakeNewlyCreatedVolume3 = new(workerfakes.FakeVolume)
-							fakeNewlyCreatedVolume3.HandleReturns("some-handle-3")
 
 							fakeVolume1 = new(workerfakes.FakeVolume)
 							fakeVolume1.HandleReturns("some-handle-1")
